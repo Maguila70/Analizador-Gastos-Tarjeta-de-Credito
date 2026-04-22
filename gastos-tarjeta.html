@@ -455,6 +455,34 @@ main{
 }
 .rubro-add-box h4{font-size:.74rem;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
 
+/* ──── EMOJI PICKER ──── */
+.emoji-btn{
+  background:rgba(7,9,15,.7);border:1px solid var(--border);color:var(--text);
+  padding:0;border-radius:8px;font-family:inherit;font-size:1.2rem;
+  text-align:center;cursor:pointer;line-height:1;height:34px;
+  display:grid;place-items:center;transition:border-color .15s, background .15s;
+}
+.emoji-btn:hover{border-color:var(--accent);background:rgba(96,165,250,.08)}
+.emoji-picker{
+  position:fixed;z-index:1200;background:rgba(12,16,25,.98);
+  border:1px solid var(--border-strong);border-radius:12px;
+  padding:10px;width:320px;max-height:340px;overflow-y:auto;
+  box-shadow:0 20px 50px rgba(0,0,0,.55);backdrop-filter:blur(12px);
+}
+.ep-group-title{
+  font-size:.6rem;color:var(--text-3);text-transform:uppercase;
+  letter-spacing:.08em;margin:8px 2px 4px;font-weight:600;
+}
+.ep-group-title:first-child{margin-top:0}
+.ep-group{display:grid;grid-template-columns:repeat(8,1fr);gap:3px}
+.ep-emoji{
+  background:transparent;border:1px solid transparent;border-radius:7px;
+  font-size:1.1rem;width:34px;height:34px;cursor:pointer;line-height:1;
+  display:grid;place-items:center;color:inherit;padding:0;
+}
+.ep-emoji:hover{background:rgba(255,255,255,.08);border-color:var(--border-strong)}
+.ep-emoji.selected{background:rgba(96,165,250,.2);border-color:var(--accent)}
+
 /* ──── SAVED LIST ──── */
 .saved-row{
   display:flex;align-items:center;justify-content:space-between;
@@ -627,7 +655,7 @@ main{
       <div class="rubro-add-box">
         <h4>➕ Agregar nuevo rubro</h4>
         <div class="rubro-edit-form" style="border-style:dashed;border-color:var(--border-strong);background:transparent">
-          <input type="text" id="new-rubro-ico" placeholder="🎯" maxlength="3" style="text-align:center;font-size:1.1rem">
+          <button type="button" class="emoji-btn" id="new-rubro-ico" data-emoji="📌" onclick="openEmojiPicker(this)" title="Elegir icono">📌</button>
           <input type="color" id="new-rubro-color" value="#60a5fa">
           <input type="text" id="new-rubro-name" placeholder="Nombre del rubro">
           <button class="btn primary" onclick="addCategory()" style="padding:7px 14px;font-size:.78rem">Agregar</button>
@@ -926,6 +954,70 @@ function fmtUSD(n){ return 'US$ ' + Number(n).toFixed(2); }
 function toCLP(e){ return e.cur==='USD' ? e.amount*USD_TO_CLP : e.amount; }
 function displayAmt(e){ return e.cur==='USD' ? fmtUSD(e.amount) : fmtCLP(e.amount); }
 function catCfg(cat){ return CATEGORIES[cat] || {icon:'📦', color:'#a1a1aa'}; }
+
+// ═══ Emoji picker ═══
+const EMOJI_SET = [
+  { t:'Comida y bebida', e:['🍽️','🛒','🍔','🍕','🌭','🌮','🍣','🍜','🍝','🥗','🥖','🥐','🍰','🍎','🥩','🥡','☕','🍺','🍷','🥤','🧃','🍦'] },
+  { t:'Transporte', e:['🚗','⛽','🚕','🚌','🚇','🚆','✈️','🚲','🛵','🅿️','🛣️','🚢','🚙','🚚','🛺','🛻'] },
+  { t:'Hogar y servicios', e:['🏠','⚡','💡','💧','🔥','🌐','📶','📺','🧺','🛋️','🔧','🪑','🧹','🛁','🚿','🪟','🪞','🧯'] },
+  { t:'Compras', e:['🛍️','👕','👖','👟','👜','💄','🕶️','🎁','📦','💎','⌚','🧢','👗','🧥','👠'] },
+  { t:'Salud y deporte', e:['🏃','💊','🩺','🏥','🦷','🧘','⚽','🏋️','🚴','🏊','🥊','🏀','🎾','⛷️','🏓','🧴'] },
+  { t:'Entretenimiento', e:['🎬','🎮','🎵','🎤','🎭','🎟️','🎲','🎸','🎨','📖','🎧','🎺','🎻','🪩','🃏'] },
+  { t:'Dinero y trabajo', e:['💵','💳','💰','🏦','📈','📊','💼','📝','🖨️','📎','🔁','💱','🧾','🧮','💲'] },
+  { t:'Tecnología', e:['💻','📱','🖥️','⌨️','🖱️','🎧','📷','🔋','💾','🛰️','📡','🎚️','🕹️','🔌'] },
+  { t:'Viajes', e:['🧳','🏨','🗺️','🏖️','⛱️','🏔️','🗽','🎢','🌍','🛎️','🏕️','⛺','🗼','🏛️'] },
+  { t:'Educación', e:['📚','🎓','✏️','📐','🧪','🔬','🏫','📓','📒','🖊️','🗒️'] },
+  { t:'Mascotas y jardín', e:['🐶','🐱','🐾','🌱','🌳','🌷','🪴','🌸','🐰','🐟','🦜'] },
+  { t:'Otros', e:['📌','⭐','❤️','🎯','🔔','📆','🗂️','🎉','🔒','🆘','⚙️','🧰','🎗️','🏷️','🔖'] }
+];
+
+function openEmojiPicker(btn){
+  const existing = document.getElementById('emoji-picker-pop');
+  const wasForSame = existing && existing._for === btn;
+  if(existing) existing.remove();
+  if(wasForSame) return;
+
+  const current = btn.dataset.emoji || btn.textContent || '';
+  const pop = document.createElement('div');
+  pop.id = 'emoji-picker-pop';
+  pop.className = 'emoji-picker';
+  pop._for = btn;
+  pop.innerHTML = EMOJI_SET.map(g=>`
+    <div class="ep-group-title">${g.t}</div>
+    <div class="ep-group">${g.e.map(em=>`<button type="button" class="ep-emoji${em===current?' selected':''}" data-em="${em}">${em}</button>`).join('')}</div>
+  `).join('');
+  document.body.appendChild(pop);
+
+  pop.querySelectorAll('.ep-emoji').forEach(b=>{
+    b.addEventListener('click', ev=>{
+      ev.stopPropagation();
+      const em = b.dataset.em;
+      btn.dataset.emoji = em;
+      btn.textContent = em;
+      pop.remove();
+      document.removeEventListener('mousedown', closeEmojiPickerOnOutside, true);
+    });
+  });
+
+  const r = btn.getBoundingClientRect();
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let top = r.bottom + 6;
+  if(top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+  let left = r.left;
+  if(left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  left = Math.max(8, left);
+  pop.style.top = top + 'px';
+  pop.style.left = left + 'px';
+
+  setTimeout(()=>document.addEventListener('mousedown', closeEmojiPickerOnOutside, true), 0);
+}
+function closeEmojiPickerOnOutside(ev){
+  const pop = document.getElementById('emoji-picker-pop');
+  if(!pop) { document.removeEventListener('mousedown', closeEmojiPickerOnOutside, true); return; }
+  if(pop.contains(ev.target) || pop._for === ev.target) return;
+  pop.remove();
+  document.removeEventListener('mousedown', closeEmojiPickerOnOutside, true);
+}
 function isCuotaItem(e){ return !!(e.note && /Cuota/i.test(e.note)); }
 function displayCat(e){
   if(isCuotaItem(e)) return 'Cuotas';
@@ -1396,7 +1488,7 @@ function renderRubrosList(){
       const row = document.createElement('div');
       row.className = 'rubro-edit-form';
       row.innerHTML = `
-        <input type="text" id="edit-ico-${name}" value="${cfg.icon}" maxlength="3" style="text-align:center;font-size:1.1rem">
+        <button type="button" class="emoji-btn" id="edit-ico-${name}" data-emoji="${cfg.icon}" onclick="openEmojiPicker(this)" title="Elegir icono">${cfg.icon}</button>
         <input type="color" id="edit-color-${name}" value="${cfg.color}">
         <input type="text" id="edit-name-${name}" value="${name}" ${isSystem||isProtected?'disabled title="Nombre no editable"':''}>
         <button class="mini" onclick="saveCategory('${name.replace(/'/g,"\\'")}')">✓ Guardar</button>
@@ -1424,21 +1516,24 @@ function renderRubrosList(){
 }
 function addCategory(){
   const name = document.getElementById('new-rubro-name').value.trim();
-  const icon = document.getElementById('new-rubro-ico').value.trim() || '📌';
+  const icoBtn = document.getElementById('new-rubro-ico');
+  const icon = (icoBtn.dataset.emoji || icoBtn.textContent || '📌').trim();
   const color = document.getElementById('new-rubro-color').value;
   if(!name) return toast('Ingresa un nombre', true);
   if(CATEGORIES[name]) return toast('Ya existe un rubro con ese nombre', true);
   CATEGORIES[name] = { icon, color };
   saveCategories();
   document.getElementById('new-rubro-name').value = '';
-  document.getElementById('new-rubro-ico').value = '';
+  icoBtn.dataset.emoji = '📌';
+  icoBtn.textContent = '📌';
   renderRubrosList();
   renderBubbles();
   toast(`✅ Rubro "${name}" agregado`);
 }
 function saveCategory(oldName){
   const cfg = CATEGORIES[oldName];
-  const newIcon = document.getElementById('edit-ico-'+oldName).value.trim() || cfg.icon;
+  const icoBtn = document.getElementById('edit-ico-'+oldName);
+  const newIcon = (icoBtn.dataset.emoji || icoBtn.textContent || cfg.icon).trim() || cfg.icon;
   const newColor = document.getElementById('edit-color-'+oldName).value;
   const nameInput = document.getElementById('edit-name-'+oldName);
   const newName = (nameInput && !nameInput.disabled) ? nameInput.value.trim() : oldName;
